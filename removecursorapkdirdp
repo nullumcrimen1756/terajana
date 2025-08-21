@@ -1,0 +1,93 @@
+# Script untuk menghapus semua sisa instalasi Cursor Editor
+# Harus dijalankan sebagai Administrator
+
+# Fungsi untuk menampilkan pesan status
+function Write-Status {
+    param($message, $color = "White")
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] " -NoNewline -ForegroundColor Cyan
+    Write-Host $message -ForegroundColor $color
+}
+
+# Memeriksa apakah script dijalankan sebagai administrator
+if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "Script harus dijalankan sebagai Administrator!" -ForegroundColor Red
+    Write-Host "Silakan jalankan PowerShell sebagai Administrator dan eksekusi script ini lagi." -ForegroundColor Yellow
+    exit 1
+}
+
+Write-Status "Memulai proses penghapusan sisa instalasi Cursor Editor..." "Yellow"
+
+# Menghentikan semua proses Cursor yang mungkin masih berjalan
+Write-Status "Menghentikan proses Cursor yang berjalan..." "Cyan"
+Get-Process -Name "cursor*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2  # Memberi waktu untuk proses berhenti
+
+# Daftar lokasi yang akan dihapus
+$locations = @(
+    "C:\Users\Administrator\AppData\Local\Programs\cursor",
+    "C:\Users\Administrator\AppData\Roaming\Cursor",
+    "C:\Users\Administrator\AppData\Local\cursor"
+)
+
+# Menghapus file dan folder
+foreach ($location in $locations) {
+    if (Test-Path $location) {
+        try {
+            Write-Status "Menghapus: $location" "Cyan"
+            Remove-Item -Path $location -Recurse -Force -ErrorAction Stop
+            Write-Status "Berhasil menghapus: $location" "Green"
+        }
+        catch {
+            Write-Status "Gagal menghapus: $location - $($_.Exception.Message)" "Red"
+        }
+    }
+    else {
+        Write-Status "Lokasi tidak ditemukan: $location" "Yellow"
+    }
+}
+
+# Menghapus file executable spesifik
+$exePath = "C:\Users\Administrator\AppData\Local\Programs\cursor\Cursor.exe"
+if (Test-Path $exePath) {
+    try {
+        Write-Status "Menghapus file executable: $exePath" "Cyan"
+        Remove-Item -Path $exePath -Force -ErrorAction Stop
+        Write-Status "Berhasil menghapus file executable" "Green"
+    }
+    catch {
+        Write-Status "Gagal menghapus file executable - $($_.Exception.Message)" "Red"
+    }
+}
+
+# Menghapus entri registry (opsional, hati-hati!)
+Write-Status "Menghapus entri registry..." "Cyan"
+$registryPaths = @(
+    "HKCU:\Software\Cursor",
+    "HKLM:\SOFTWARE\Cursor",
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Cursor"
+)
+
+foreach ($regPath in $registryPaths) {
+    if (Test-Path $regPath) {
+        try {
+            Remove-Item -Path $regPath -Recurse -Force -ErrorAction Stop
+            Write-Status "Berhasil menghapus registry: $regPath" "Green"
+        }
+        catch {
+            Write-Status "Gagal menghapus registry: $regPath - $($_.Exception.Message)" "Red"
+        }
+    }
+}
+
+Write-Status "Proses penghapusan selesai!" "Green"
+Write-Host "`nRekomendasi:" -ForegroundColor Yellow
+Write-Host "1. Restart komputer untuk menyelesaikan proses pembersihan" -ForegroundColor White
+Write-Host "2. Gunakan tools seperti Revo Uninstaller untuk pembersihan lebih menyeluruh" -ForegroundColor White
+
+# Tanya pengguna apakah ingin restart
+$restart = Read-Host "`nRestart komputer sekarang? (y/n)"
+if ($restart -eq 'y' -or $restart -eq 'Y') {
+    Write-Status "Komputer akan restart dalam 5 detik..." "Yellow"
+    Start-Sleep -Seconds 5
+    Restart-Computer -Force
+}
